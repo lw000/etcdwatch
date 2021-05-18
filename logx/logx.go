@@ -9,7 +9,12 @@ import (
 
 var L *zap.Logger
 
-func Init(logPath string, logLevel string) {
+func Init(logPath string, logLevel string, enableConsole bool) {
+	var (
+		level   zapcore.Level
+		allCore []zapcore.Core
+	)
+
 	hook := lumberjack.Logger{
 		Filename:   logPath, // 日志文件路径，默认 os.TempDir()
 		MaxSize:    100,     // 每个日志文件保存10M，默认 100M
@@ -18,9 +23,6 @@ func Init(logPath string, logLevel string) {
 		Compress:   true,    // 是否压缩，默认不压缩
 	}
 
-	fileWrite := zapcore.AddSync(&hook)
-
-	var level zapcore.Level
 	switch logLevel {
 	case "debug":
 		level = zap.DebugLevel
@@ -44,19 +46,24 @@ func Init(logPath string, logLevel string) {
 		EncodeCaller:   zapcore.FullCallerEncoder,      // 全路径编码器
 		EncodeName:     zapcore.FullNameEncoder,
 	}
+
 	// 设置日志级别
 	atomicLevel := zap.NewAtomicLevel()
 	atomicLevel.SetLevel(level)
 
-	fileCore := zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), fileWrite, level)
+	fileWriter := zapcore.AddSync(&hook)
+	allCore = append(allCore, zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), fileWriter, level))
 
-	consoleCore := zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), zapcore.AddSync(os.Stdout), level)
+	if enableConsole {
+		consoleCore := zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), zapcore.AddSync(os.Stdout), level)
+		allCore = append(allCore, consoleCore)
+	}
 
-	allCore := zapcore.NewTee(fileCore, consoleCore)
+	core := zapcore.NewTee(allCore...)
 
 	// 开启开发模式，堆栈跟踪
 	caller := zap.AddCaller()
 	development := zap.Development()
 	filed := zap.Fields(zap.String("serviceName", "etcdwatch"))
-	L = zap.New(allCore, caller, development, filed)
+	L = zap.New(core, caller, development, filed)
 }
