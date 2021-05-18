@@ -21,7 +21,7 @@ func rateTester() {
 }
 
 func main() {
-	logx.InitLogger("data/logs/etcdwatch.log", "debug")
+	logx.Init("data/logs/etcdwatch.log", "debug")
 
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"10.0.84.174:2379", "10.0.84.174:23279", "10.0.84.174:33279"}, //etcd集群三个实例的端口
@@ -33,7 +33,7 @@ func main() {
 		return
 	}
 
-	logx.X.Info("connect succ")
+	logx.L.Debug("etcd connect success")
 
 	defer cli.Close()
 

@@ -4,11 +4,12 @@ import (
 	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"os"
 )
 
-var X *zap.Logger
+var L *zap.Logger
 
-func InitLogger(logPath string, logLevel string) {
+func Init(logPath string, logLevel string) {
 	hook := lumberjack.Logger{
 		Filename:   logPath, // 日志文件路径，默认 os.TempDir()
 		MaxSize:    100,     // 每个日志文件保存10M，默认 100M
@@ -17,7 +18,7 @@ func InitLogger(logPath string, logLevel string) {
 		Compress:   true,    // 是否压缩，默认不压缩
 	}
 
-	write := zapcore.AddSync(&hook)
+	fileWrite := zapcore.AddSync(&hook)
 
 	var level zapcore.Level
 	switch logLevel {
@@ -46,12 +47,16 @@ func InitLogger(logPath string, logLevel string) {
 	// 设置日志级别
 	atomicLevel := zap.NewAtomicLevel()
 	atomicLevel.SetLevel(level)
-	core := zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), write, level)
+
+	fileCore := zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), fileWrite, level)
+
+	consoleCore := zapcore.NewCore(zapcore.NewJSONEncoder(encoderConfig), zapcore.AddSync(os.Stdout), level)
+
+	allCore := zapcore.NewTee(fileCore, consoleCore)
 
 	// 开启开发模式，堆栈跟踪
 	caller := zap.AddCaller()
 	development := zap.Development()
-	filed := zap.Fields(zap.String("serviceName", "serviceName"))
-	X = zap.New(core, caller, development, filed)
-	X.Info("defaultLogger init success")
+	filed := zap.Fields(zap.String("serviceName", "etcdwatch"))
+	L = zap.New(allCore, caller, development, filed)
 }
