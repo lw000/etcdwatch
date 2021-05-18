@@ -2,13 +2,27 @@ package main
 
 import (
 	"context"
+	logx "demo/etcdwatch/logx"
+	"github.com/etcd-io/etcd/clientv3"
+	"golang.org/x/time/rate"
 	"log"
 	"time"
-
-	"github.com/etcd-io/etcd/clientv3"
 )
 
+func rateTester() {
+	//limiter := rate.NewLimiter(rate.Every(100*time.Millisecond), 1)
+	limiter := rate.NewLimiter(10, 1)
+	var err error
+	err = limiter.Wait(context.Background())
+	if err != nil {
+		return
+	}
+
+}
+
 func main() {
+	logx.InitLogger("data/logs/etcdwatch.log", "debug")
+
 	cli, err := clientv3.New(clientv3.Config{
 		Endpoints:   []string{"10.0.84.174:2379", "10.0.84.174:23279", "10.0.84.174:33279"}, //etcd集群三个实例的端口
 		DialTimeout: 2 * time.Second,
@@ -19,7 +33,7 @@ func main() {
 		return
 	}
 
-	log.Println("connect succ")
+	logx.X.Info("connect succ")
 
 	defer cli.Close()
 
